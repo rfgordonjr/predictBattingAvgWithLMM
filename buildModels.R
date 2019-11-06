@@ -206,7 +206,7 @@ trainWorst6 <- train %>%
   ungroup() %>% 
   arrange(desc(rmse)) %>% 
   slice(1:6) 
-train %>% 
+plotTrainWorst <- train %>% 
   # filter(playerID %in% trainWorst6$playerID) %>% 
   inner_join(trainWorst6, by = "playerID") %>% 
   mutate(customLabel = paste0(nameFirst, " ", nameLast, ": RMSE = ", round(rmse, 4))) %>% 
@@ -217,11 +217,12 @@ train %>%
   geom_point(aes(x = yearID, y = value, group = var, col = var)) +
   facet_wrap(~customLabel) +
   scale_y_continuous(labels=scaleFUNy) +
-  labs(title = "Predicted vs Actual Plots by year for worst-fitting players (Test set)",
+  labs(title = "Predicted vs Actual Plots by year for worst-fitting players (Train set)",
        subtitle = "RMSE = Root Mean Squared Error",
        x = "Year Played",
        y = "Batting Average")
-
+plotTrainWorst
+ggsave("plotTrainWorst.png", plot = plotTrainWorst, path = here::here('plots'))
 
 ## Now the best from the training set:
 trainBest6 <- train %>% 
@@ -259,7 +260,7 @@ testWorst6 <- test %>%
   ungroup() %>% 
   arrange(desc(rmse)) %>% 
   slice(1:6) 
-test %>% 
+plotTestWorst <- test %>% 
   # filter(playerID %in% trainWorst6$playerID) %>% 
   inner_join(testWorst6, by = "playerID") %>% 
   mutate(customLabel = paste0(nameFirst, " ", nameLast, ": RMSE = ", round(rmse, 4))) %>% 
@@ -274,6 +275,8 @@ test %>%
        subtitle = "RMSE = Root Mean Squared Error",
        x = "Year Played",
        y = "Batting Average")
+plotTestWorst
+ggsave("plotTestWorst.png", plot = plotTestWorst, path = here::here('plots'))
 
 testBest6 <- test %>% 
   group_by(playerID) %>% 
