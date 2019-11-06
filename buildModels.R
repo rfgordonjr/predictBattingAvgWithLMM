@@ -1,3 +1,4 @@
+library(plyr)
 library(tidyverse)
 library(lme4)
 library(lubridate)
@@ -14,8 +15,8 @@ data %>%
   theme(legend.position = "none")
 
 str(data$debutDate)
-year(data$debutDate[1])
-year(data$debutDate)
+# year(data$debutDate[1])
+# year(data$debutDate)
 
 ## take (stratefied) samples and look at 5 year intervals
 ## credit for stratefied samples to https://gist.github.com/ramhiser/8b5ffd0ffbfbf1f49e71bbbd330bf72d
@@ -128,7 +129,8 @@ summary(fit0)
 head(lme4::ranef(fit0)[[1]])
 lme4::fixef(fit0)
 
-# estimates are very small for the squared random effects. Let's remove them
+# The software complains and estimates are very small for the squared random effects. 
+## Let's remove them and do a simpler model.
 # also removed cumGamesPlayed and age since its highly correlated with yearService
 
 fit1 <- lmer(batAvg ~ 1 
@@ -144,16 +146,15 @@ head(lme4::ranef(fit1)[[1]])
 lme4::fixef(fit1)
 
 train$pred1 <- predict(fit1, train, re.form = NULL) # includes all random effects
-train %>% 
-  select(playerID, nameFirst, nameLast, GS, estSalary, cumAwards, soPer, yearService, batAvg, pred1) %>% 
-  filter(is.na(pred1)) %>% 
-  View()
+# train %>% 
+  # select(playerID, nameFirst, nameLast, GS, estSalary, cumAwards, soPer, yearService, batAvg, pred1) %>%   filter(is.na(pred1)) %>% View()
 
 # Looks like there's lots of missin salaries in the data. try again without it
+# also awards are very rare. remove for now.
 fit2 <- lmer(batAvg ~ 1 
              + GS 
              # + estSalary 
-             + cumAwards 
+             # + cumAwards 
              + soPer
              + yearService
              + (1 + yearService | playerID), 
@@ -163,10 +164,10 @@ head(lme4::ranef(fit2)[[1]])
 lme4::fixef(fit2)
 
 train$pred2 <- predict(fit2, train, re.form = NULL) # includes all random effects
-train %>% 
-  select(yearID, playerID, nameFirst, nameLast, GS, estSalary, cumAwards, soPer, yearService, batAvg, pred2) %>% 
-  filter(is.na(pred2)) %>% 
-  View()
+# train %>% 
+#   select(yearID, playerID, nameFirst, nameLast, GS, estSalary, cumAwards, soPer, yearService, batAvg, pred2) %>% 
+#   filter(is.na(pred2)) %>% 
+#   View()
 
 train %>% 
   ggplot(aes(batAvg, pred2)) +
@@ -174,10 +175,10 @@ train %>%
   geom_point()
 
 names(attributes(fit2))
-attr(fit2, "call")
-attr(fit2, "beta")
-attr(fit2, "u")
-attr(fit2, "class")
+# attr(fit2, "call")
+# attr(fit2, "beta")
+# attr(fit2, "u")
+# attr(fit2, "class")
 
 train %>% 
   mutate(resid = batAvg - pred2) %>% 
@@ -298,10 +299,184 @@ test %>%
        y = "Batting Average")
 
 ## How do we take advantage of new information? 
-## For players the model hasnt seen, let's use the first two years worth of data to help
+## For players the model hasnt seen, let's use the first three years worth of data to help
 ##  predict the remaining years
 ## To do this we'll need to predict both the
 ##    - BLUE: Best Linear Unbiased Estimator (for fixed effects)
 ##    - BLUP: Best Linear Unbiased Predictor (for random effects)
 
-## We'll have to do this by hand
+## We'll have to do this by hand 
+## Recall $y = X\beta + Z\gamma + \epsilon$ and
+## Var(y) = V = ZGZ' + R where Var(\gamma) = G and Var(\epsilon) = R
+## Can be shown (see https://support.sas.com/documentation/cdl/en/statug/63033/HTML/default/viewer.htm#statug_mixed_sect022.htm) that
+## \hat{\beta} = (X'\hat{V}^{-1}X)^-X'\hat{V}^{-1}y and
+## \hat{\gamma} = \hat{G}Z'\hat{V}^{-1}(y - X\hat{\beta})
+
+# v <- VarCorr(fit2); v
+# summary(fit2)
+# names(attributes(v))
+# G <- as.matrix(Matrix::bdiag(v)); G
+# sigma(fit2)
+# model.matrix(fit2)
+
+## take 6 worst players again: calculate \hat{\beta} and \hat{\gamma} for their first 3 years
+## then use that info to predict the new few years of their careers
+first3Years <- test %>% 
+  # filter(playerID %in% trainWorst6$playerID) %>% 
+  inner_join(testBest6, by = "playerID") %>% 
+  group_by(playerID) %>% 
+  mutate(rowNum = row_number()) %>% 
+  ungroup() %>% 
+  filter(rowNum <= 3) 
+## how many years did each play?
+test %>% 
+  filter(playerID %in% first3Years$playerID) %>% 
+  group_by(playerID) %>% 
+  summarise(maxYearService = max(yearService)) %>% 
+  ungroup() 
+
+# estYearlyBA <- function(data, object, ID, yearsToPred){
+  data = first3Years; object = fit2; ID = "andruel01"; yearsToPred = 10
+  v <- VarCorr(object);
+  G <- as.matrix(Matrix::bdiag(v))
+  redData <- data %>% filter(playerID == ID)
+  Z = matrix(cbind(rep(1, yearsToPred), 1:yearsToPred), ncol = 2)
+  # Var(y) = V = ZGZ' + R where Var(\gamma) = G and Var(\epsilon) = R
+  V = Z%*%G%*%t(Z) + sigma(fit2)*diag(yearsToPred)
+  ## \hat{\beta} = (X'\hat{V}^{-1}X)^-X'\hat{V}^{-1}y 
+  X = data %>% 
+    filter(playerID == ID) %>% 
+    mutate(ones = 1) %>% 
+    select(ones, GS, soPer, yearService) %>% 
+    as.matrix()
+  rows <- as.numeric(data %>% filter(playerID == ID) %>% nrow())
+  Z_red = matrix(cbind(rep(1, rows), 1:rows), ncol = 2)
+  V_red = Z_red%*%G%*%t(Z_red) + sigma(fit2)*diag(rows)
+  y_red = data %>% filter(playerID == ID) %>% select(batAvg)
+  # beta_hat = solve(t(X)%*%solve(V_red)%*%X)%*%t(X)%*%solve(V_red)%*%y_red$batAvg
+  beta_hat <- fixef(fit2)
+  ## \hat{\gamma} = \hat{G}Z'\hat{V}^{-1}(y - X\hat{\beta})
+  gamma_hat = G%*%t(Z_red)%*%solve(V_red)%*%(y_red$batAvg - X%*%beta_hat)
+  preds = X%*%beta_hat + Z%*%gamma_hat
+  return(preds)
+}
+# estYearlyBA(data = first3Years, object = fit2, ID = "andruel01", yearsToPred = 10)
+
+## Build custom BLUP on Test Set subjects
+allSubPredParMC <- function(obj, data, y, cores){
+  require('lme4')
+  require('parallel')
+  require('plyr')
+  
+  # obj: lme4 object (merMod)
+  # data: data.frame
+  # y: character
+  # cores: integer (use detectCores to figure out what is available)
+  obj = fit2;data = first3Years;y = "batAvg";cores = 4
+  
+  getSubPred <- function(obj, playerID, data, y){
+    # obj = fit2; playerID = "andruel01"; data = first3Years; y = "batAvg"
+    D <- matrix(c(VarCorr(obj))$playerID[1:2, 1:2], 2, 2) # change 2 to number of random effects
+    len <- sum(ifelse(data$playerID==playerID, 1, 0))
+    onlyplayerID <- data[which(data$playerID==playerID),]
+    Zt <- matrix(data=rbind(c(rep(1, len))
+                            , seq(min(onlyplayerID$yearService)
+                                  , max(onlyplayerID$yearService), 1))
+                 , 2, len)
+    Z <- t(Zt)
+    Sigma <- diag(attr(VarCorr(obj), "sc")^2, len, len)
+    onlyplayerID$predPop <- (fixef(obj))[names(fixef(obj)) %in% c("(Intercept)")] + (fixef(obj))[names(fixef(obj)) %in% c("GS")] + (fixef(obj))[names(fixef(obj)) %in% c("soPer")] + (fixef(obj))[names(fixef(obj)) %in% c("yearService")]
+    uhat <- D%*%Zt%*%solve(Z%*%D%*%Zt + Sigma)%*%as.matrix(onlyplayerID[,names(onlyplayerID) %in% y] - onlyplayerID$predPop)    
+    onlyplayerID$predSubjectCustom <- as.numeric(onlyplayerID$predPop + Z%*%uhat)
+    onlyplayerID$ranIntercept <- as.numeric(uhat[1])
+    onlyplayerID$ranSlope <- as.numeric(uhat[2])
+    return(onlyplayerID)
+  }
+  ids <- unique(data$playerID)
+  # temp <- ldplyr(mclapply(X=ids, FUN=getSubPred, obj=obj, data=data, y=y, mc.cores=cores), data.frame)
+  temp <- plyr::ldply(mclapply(X=ids, FUN=getSubPred, obj=obj, data=data, y=y, mc.cores=cores), data.frame)
+  
+  # Also return random effects parameters to returned data frame
+  ranefs <- ranef(obj)[[1]]
+  names(ranefs) <- c("ranInterceptTrue", "ranSlopeTrue")
+  ranefs$playerID <- rownames(ranefs); rownames(ranefs) <- c(1:nrow(ranefs))
+  require('dplyr')
+  temp2 <- dplyr::left_join(temp, ranefs, by="playerID")
+  return(temp2)
+}
+allSubPredParMC(obj = fit2,data = first3Years,y = "batAvg",cores = 4) 
+
+# Demonstrate power of blup
+getSubPredRed3 <- function(obj, playerID, dat, y){
+  obj = fit2; playerID=ids[1]; dat = first3Years; y = "batAvg"
+  require('lme4')
+  onlyplayerID <- dat[which(dat$playerID==playerID),]
+  D <- matrix(c(VarCorr(obj))$playerID[1:2, 1:2], 2, 2) # adjust "2" for num of ranefs
+  len <- sum(ifelse(dat$playerID==playerID, 1, 0))
+  Zt <- matrix(data=rbind(c(rep(1, len)), seq(min(onlyplayerID$yearService)
+                                              ,max(onlyplayerID$yearService)
+                                              ,1))
+               , 2, len)
+  Z <- t(Zt)
+  
+  temp <- onlyplayerID
+  ZtRed <- matrix(data=rbind(c(rep(1,1)), seq(max(onlyplayerID$yearService)-1,
+                                              max(onlyplayerID$yearService)-1, 1)),
+                  2, 1)
+  # ZtRed <- matrix(data=rbind(c(rep(1,1)), seq(1, 
+  #                                             max(onlyplayerID$yearService), 
+  #                                             1)
+  #                            ),
+  #                 nrow = 2)
+  ZRed <- t(ZtRed)
+  SigmaRed <- diag(attr(VarCorr(obj), "sc")^2, 1, 1)
+  Sigma <- diag(attr(VarCorr(obj), "sc")^2, len, len)
+  # temp$predPop <- (fixef(obj))[names(fixef(obj)) %in% c("(Intercept)")] +
+  #   (fixef(obj))[names(fixef(obj)) %in% c("x1")]
+  temp$predPop <- (fixef(obj))[names(fixef(obj)) %in% c("(Intercept)")] + (fixef(obj))[names(fixef(obj)) %in% c("GS")] + (fixef(obj))[names(fixef(obj)) %in% c("soPer")] + (fixef(obj))[names(fixef(obj)) %in% c("yearService")]
+  # uhatRed <- D%*%ZtRed%*%solve(ZRed%*%D%*%ZtRed + SigmaRed)%*%as.matrix(temp[,names(temp) %in% y]-temp$predPop[1:1])  
+  uhatRed <- D%*%ZtRed%*%solve(ZRed%*%D%*%ZtRed + SigmaRed)%*%as.matrix(temp[,names(temp) %in% y]-temp$predPop)  
+  uhat <- D%*%Zt%*%solve(Z%*%D%*%Zt + Sigma)%*%as.matrix(temp[,names(temp) %in% y]-temp$predPop[1:1])  
+  temp$predSubjectCustomRed <- as.numeric(temp$predPop + Z%*%uhatRed)
+  
+  temp$numObs <- 1
+  temp$predNeeded <- len
+  temp <- temp[which(temp$timePoint==len), names(temp) %in% c("playerID", "yearService"
+                                                              , "predSubjectCustomeRed", "predPopulation", y, "timePoint", "numObs", "predNeeded")]
+  if(len>1){
+    for(i in 2:(len-1)){
+      temp2 <- onlyplayerID
+      ZRed <- matrix(data=c(c(rep(1, i-1+1))
+                            , seq(max(onlyplayerID$yearService)-i
+                                  ,max(onlyplayerID$yearService)-1, 1))
+                     ,ncol=2, nrow=i-1+1)
+      ZtRed <- t(ZRed)
+      SigmaRed <- diag(attr(VarCorr(obj), "sc")^2, i-1+1, i-1+1)
+      temp2$predPop <- (fixef(obj))[names(fixef) %in% c("(Intercept)")] +
+        (fixef(obj))[names(fixef) %in% c("x1")]
+      uhatRed <- D%*%ZtRed%*%solve(ZRed%*%D%*%ZtRed + SigmaRed)%*%as.matrix(temp2[c(1:(i-1+1))
+                                                                                  ,names(temp2) %in% y] - temp2$predPop[1:(i-1+1)])
+      
+      temp2$predSubjectCustomRed <- as.numeric(temp2$predPop + Z%*%uhatRed)
+      temp2$numObs <- i-1+1
+      temp2$predNeeded <- len
+      
+      temp2 <- temp2[which(temp2$timePoint==len),
+                     names(temp2) %in% c("playerID", "yearService", "predSubjectCustomRed",
+                                         "predPopulation", y, "timePoint", "numObs", "predNeeded")] 
+      temp <- rbind(temp, temp2)      
+    }
+  }
+  return(temp)
+}
+
+allSubPredRed3 <- function(obj, dat, y){
+  obj = fit2;dat=first3Years;y = "batAvg"
+  ids <- unique(dat$playerID)
+  temp<- getSubPredRed3(obj, playerID=ids[1], dat, y)
+  for(i in 2:length(ids)){
+    temp <- rbind(temp, getSubPredRed3(obj, playerID=ids[i], dat, y))
+  }
+  return(temp)
+}
+allSubPredRed3(obj = fit2,dat=first3Years,y = "batAvg")
