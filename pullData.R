@@ -73,3 +73,4 @@ data <- peopleDebut1993 %>%
   ungroup() %>% 
   mutate_at(vars(tie:`World Series MVP`, awards, cumAwards), ~replace(., is.na(.), 0))
 
+saveRDS(object = data,file = here::here('data.rds'))
