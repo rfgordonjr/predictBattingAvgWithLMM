@@ -14,6 +14,37 @@ Predicting MLB player statistics into the future is challenging for reasons, but
 
 The LMM allows us to account for between-player differences while accounting for correlated measures of the same player over time. 
 
+## Brief description
 
+This work pulls data from the [Lahman](https://github.com/cdalzell/Lahman) package. The LMM is fit with batting average as the target and the following as fixed effects:
+
+- GS = Games started in a season
+- soPer = strikeout percentage of outs
+- yearService = the number of years the player has been in the league at the time of observation
+
+Data is gathered and collected in the `buildModels.R` code using mostly [tidy data principles](https://r4ds.had.co.nz/tidy-data.html).
+
+The following random effects are used:
+
+- intercept
+- slope (yearService)
+
+This creates a player-specific change to the population-level intercept and yearService coefficients.
+
+## Preliminary Results
+
+A train/test set was created to demonstrate the efficacy of this model on players that have not been included with the model construction. For simplicity I pulled data for all players debuting at or after 1993 and only considered mostly starters and careers lasting at least 5 years.
+
+Root mean square errors were calculated for each player. Despite the simplicity (and frankly lack of data) collected, the models perform quite well.  Latent player-specific effects are powerful.
+
+Here are the predicted/actual batting averages for the worst-fitting players in the training data set:
+
+![](plots/plotTrainWorst.png)
+
+For being the players with the 6 worst RMSEs in the model, they do quite well. Perhaps not surprising as they're from the training set.
+
+Here are the worst 6 from the test set:
+
+![](plots/plotTestWorst.png)
 
 
