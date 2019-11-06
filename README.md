@@ -14,43 +14,6 @@ Predicting MLB player statistics into the future is challenging for reasons, but
 
 The LMM allows us to account for between-player differences while accounting for correlated measures of the same player over time. 
 
-## Model Formulation
 
-The LMM is given by the following equation:
-
-$$y = X\beta + Zu + \epsilon$$
-
-where
-
-$$\begin{eqnarray*}
-y &=& n \times 1 \mbox{vector of targets, in our case yearly batting average} \\
-X &=& n \times p \mbox{matrix of fixed effects} \\
-\beta &=& \mbox{vector of length } p \mbox{ representing fixed effects coefficients} \\
-Z &=& n \times 2 \mbox{ design matrix of random effects} \\
-u &=& 2 \times 1 \mbox{ vector of random effects coefficients} \\
-\epsilon &=& n \times 1 \mbox{ vector of Normally distributed errors}
-\end{eqnarray*}$$
-
-We also have the following moment assumptions:
-
-$$\begin{eqnarray*}
-E\begin{bmatrix} 
-u  \\
-\epsilon  
-\end{bmatrix} &=& 
-\begin{bmatrix} 
-0  \\
-0
-\end{bmatrix} \\
-Var\begin{bmatrix} 
-u  \\
-\epsilon  
-\end{bmatrix} &=& 
-\begin{bmatrix} 
-D & 0 \\
-0 & \Sigma
-\end{bmatrix}  \\
-Var(Y) = V &=& ZDZ' + \Sigma
-\end{eqnarray*}$$
 
 
