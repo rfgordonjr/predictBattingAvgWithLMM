@@ -47,4 +47,6 @@ Here are the worst 6 from the test set:
 
 ![](plots/plotTestWorst.png)
 
+## Future Work
 
+In the near future I'll demonstrate how to use LMMs to take the first 3 years of performance to predict the next few years of batting averages (existing functions were written years ago and changes to packages seem to have broken some of them).
