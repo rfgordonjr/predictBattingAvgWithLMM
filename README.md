@@ -8,7 +8,7 @@ This work heavily references existing work, including:
 - The excellent documentation of SAS's proc mixed: https://support.sas.com/documentation/cdl/en/statug/63033/HTML/default/viewer.htm#statug_mixed_sect022.htm
 - A discussion of Stein's paradox describing the benefits of shrunken fixed effects parameters: http://statweb.stanford.edu/~ckirby/brad/other/Article1977.pdf
 
-Predicting MLB player statistics into the future is challenging for reasons, but here are two:
+Predicting MLB player statistics into the future is challenging for several reasons, but here are two:
 
 -	Small data. A long illustrious career will be over in 20 years. Even if we study a batting line on a monthly basis instead of yearly, the number of rows needed for a typical machine learning model would be insufficient. 
 -	There is inherent correlation. It stands to reason that seasons (or months) that are closer together are more similar than seasons (or months) that are farther apart in a players’ career. One technique that might be considered is a time series, but that too may require more data than we have at our disposal. Generating predictions for new young players – while not impossible – would also be challenging.
@@ -52,4 +52,4 @@ This is still more effective than an ordinary least squares model, as the fixed 
 
 ## Future Work
 
-In practice we'll want to use all the data available to use. In the near future I'll demonstrate how to use LMMs to take the first 3 years of performance to predict the next few years of batting averages (existing functions were written years ago and changes to packages seem to have broken some of them).
+In practice we'll want to use all the data available to use. In the near future I'll demonstrate how to use LMMs to take the first 3 years of performance to predict the next few years of batting averages (my existing functions were written years ago and changes to packages seem to have broken some of them).
