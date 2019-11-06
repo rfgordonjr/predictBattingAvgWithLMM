@@ -23,7 +23,7 @@ This work pulls data from the [Lahman](https://github.com/cdalzell/Lahman) packa
 - soPer = strikeout percentage of outs
 - yearService = the number of years the player has been in the league at the time of observation
 
-Data is gathered and collected in the `buildModels.R` code using mostly [tidy data principles](https://r4ds.had.co.nz/tidy-data.html).
+Data is gathered and collected in the `pullData.R` code using mostly [tidy data principles](https://r4ds.had.co.nz/tidy-data.html).
 
 The following random effects are used:
 
