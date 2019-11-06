@@ -50,6 +50,6 @@ Here are the worst 6 from the test set. Here I should note that the test set con
 
 This is still more effective than an ordinary least squares model, as the fixed effects parameter estimates are shrunk as described in the Efron link above.
 
-## Future Work
+## Predict Future Performance Based on Mid-Career Data
 
-In practice we'll want to use all the data available to use. In the near future I'll demonstrate how to use LMMs to take the first 3 years of performance to predict the next few years of batting averages (my existing functions were written years ago and changes to packages seem to have broken some of them).
+In practice we'll want to use all the data available to use. A more realistic situation occurs when you have a player's performance history up until the current date and you'd like to forecast what happens years from now. In this case things change in the sense that any continuous fixed covariates used must either be forecasted themselves or removed from the model, so that only an intercept and time-factor is included. Then we need only use the changing time value and the random effects estimates to predict each year.
