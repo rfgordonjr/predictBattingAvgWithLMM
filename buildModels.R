@@ -3,7 +3,8 @@ library(tidyverse)
 library(lme4)
 library(lubridate)
 library(here)
-
+library(grid)
+library(gridExtra)
 
 data <- readRDS(file = here::here('data.rds'))
 
@@ -555,6 +556,7 @@ updateWithBlup <- function(id, data, obj, y, years){
   # years = number of predictions into future needed
   ## test
   # id = "escobal02"; data = first3_simple_blups; obj = fit3; y = "batAvg"; years = 5
+  # id = "escobal02"; data = first5_simple_blups; obj = fit3; y = "batAvg"; years = 5
   library(dplyr)
   library(lme4)
   datared <- data %>% 
@@ -601,13 +603,16 @@ escobal02_preds <- updateWithBlup(id = "escobal02", data = first3_simple_blups, 
 escobal02_3 <- test %>%
   inner_join(testWorst6_3, by = "playerID") %>%
   filter(playerID %in% c("escobal02")) %>% 
-  left_join(escobal02_preds %>% filter(yearService>3) %>% select(newBatAvg = batAvg, everything()), by = c("yearID", "playerID", "yearService")) %>% 
-  mutate(customLabel = paste0(nameFirst, " ", nameLast, ": RMSE = ", round(rmse, 4))) %>% 
+  left_join(escobal02_preds %>% 
+              # filter(yearService>3) %>% 
+              select(newBatAvg = batAvg, everything()), by = c("yearID", "playerID", "yearService")) %>% 
+  mutate(customLabel = paste0(nameFirst, " ", nameLast, ": Original RMSE = ", round(rmse, 4))) %>% 
   select(playerID, customLabel, yearID, actual = batAvg, predictedFixed = pred3.x, predictedBLUP = newBatAvg) %>% 
   gather(var, value, -c(playerID, customLabel, yearID)) %>% 
   ggplot(.) +
   geom_line(aes(x = yearID, y = value, group = var, col = var)) +
   geom_point(aes(x = yearID, y = value, group = var, col = var)) +
+  geom_vline(xintercept = 2010, col = "black", linetype = 2) +
   facet_wrap(~customLabel) +
   scale_x_continuous(labels=scaleFUN) +
   scale_y_continuous(labels=scaleFUNy) +
@@ -617,3 +622,75 @@ escobal02_3 <- test %>%
        y = "Batting Average")
 escobal02_3
 ggsave(filename = "escobal02_3.png",plot = escobal02_3,path = here::here('plots'))
+
+## Repeat but with 5 years of history
+first5_simple <- test %>% 
+  # filter(playerID %in% trainWorst6$playerID) %>% 
+  inner_join(testWorst6_3, by = "playerID") %>% 
+  group_by(playerID) %>% 
+  mutate(rowNum = row_number()) %>% 
+  ungroup() %>% 
+  filter(rowNum <= 5) 
+first5_simple_blups <- allSubPredParMC3(obj = fit3,data = first5_simple,y = "batAvg",cores = 4) 
+escobal02_preds5 <- updateWithBlup(id = "escobal02", data = first5_simple_blups, obj = fit3, y = "batAvg", years = 5)
+# now plot
+escobal02_5 <- test %>%
+  inner_join(testWorst6_3, by = "playerID") %>%
+  filter(playerID %in% c("escobal02")) %>% 
+  mutate(yearService =as.numeric(yearService)) %>% #str()
+  left_join(escobal02_preds5 %>% 
+              # filter(yearService>5) %>%
+              select(newBatAvg = batAvg, everything()), by = c("yearID", "playerID", "yearService")) %>% # View()
+  mutate(customLabel = paste0(nameFirst, " ", nameLast, ": Original RMSE = ", round(rmse, 4))) %>% 
+  select(playerID, customLabel, yearID, actual = batAvg, predictedFixed = pred3.x, predictedBLUP = newBatAvg) %>% 
+  gather(var, value, -c(playerID, customLabel, yearID)) %>% 
+  ggplot(.) +
+  geom_line(aes(x = yearID, y = value, group = var, col = var)) +
+  geom_point(aes(x = yearID, y = value, group = var, col = var)) +
+  geom_vline(xintercept = 2012, col = "black", linetype = 2) +
+  facet_wrap(~customLabel) +
+  scale_x_continuous(labels=scaleFUN) +
+  scale_y_continuous(labels=scaleFUNy) +
+  labs(title = "Predicted vs Actual Plots by year for worst-fitting players (Test set)",
+       subtitle = "First 5 years used for Green Prediction",
+       x = "Year Played",
+       y = "Batting Average")
+escobal02_5
+ggsave(filename = "escobal02_5.png",plot = escobal02_5,path = here::here('plots'))
+
+## Repeat but with 8 years of history
+first8_simple <- test %>% 
+  # filter(playerID %in% trainWorst6$playerID) %>% 
+  inner_join(testWorst6_3, by = "playerID") %>% 
+  group_by(playerID) %>% 
+  mutate(rowNum = row_number()) %>% 
+  ungroup() %>% 
+  filter(rowNum <= 8) 
+first8_simple_blups <- allSubPredParMC3(obj = fit3,data = first8_simple,y = "batAvg",cores = 4) 
+escobal02_preds8 <- updateWithBlup(id = "escobal02", data = first8_simple_blups, obj = fit3, y = "batAvg", years = 5)
+# now plot
+escobal02_8 <- test %>%
+  inner_join(testWorst6_3, by = "playerID") %>%
+  filter(playerID %in% c("escobal02")) %>% 
+  mutate(yearService =as.numeric(yearService)) %>% #str()
+  left_join(escobal02_preds8 %>% 
+              # filter(yearService>5) %>%
+              select(newBatAvg = batAvg, everything()), by = c("yearID", "playerID", "yearService")) %>% #View()
+  mutate(customLabel = paste0(nameFirst, " ", nameLast, ": Original RMSE = ", round(rmse, 4))) %>% 
+  select(playerID, customLabel, yearID, actual = batAvg, predictedFixed = pred3.x, predictedBLUP = newBatAvg) %>% 
+  gather(var, value, -c(playerID, customLabel, yearID)) %>% 
+  ggplot(.) +
+  geom_line(aes(x = yearID, y = value, group = var, col = var)) +
+  geom_point(aes(x = yearID, y = value, group = var, col = var)) +
+  geom_vline(xintercept = 2015, col = "black", linetype = 2) +
+  facet_wrap(~customLabel) +
+  scale_x_continuous(labels=scaleFUN) +
+  scale_y_continuous(labels=scaleFUNy) +
+  labs(title = "Predicted vs Actual Plots by year for worst-fitting players (Test set)",
+       subtitle = "First 8 years used for Green Prediction",
+       x = "Year Played",
+       y = "Batting Average")
+escobal02_8
+ggsave(filename = "escobal02_8.png",plot = escobal02_8,path = here::here('plots'))
+
+gridExtra::grid.arrange(escobal02_3, escobal02_5, escobal02_8)
