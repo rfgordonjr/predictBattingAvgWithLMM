@@ -62,5 +62,5 @@ We get some straight line nonsense. If we continually update the BLUP (random ef
 
 ![](plots/escobal02_3.png)
 
-Clearly 3 years isn't enough. 
+Clearly 3 years isn't enough. What if we repeated the strategy but started with 5 years of history? 10 years?
 
