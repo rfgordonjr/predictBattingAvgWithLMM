@@ -48,8 +48,19 @@ Here are the worst 6 from the test set. Here I should note that the test set con
 
 ![](plots/plotTestWorst.png)
 
-This is still more effective than an ordinary least squares model, as the fixed effects parameter estimates are shrunk as described in the Efron link above.
+This is still more effective than an ordinary least squares model, as the fixed effects parameter estimates are shrunk as described in the Efron link above. *That said*, this is unrealistic because we don't know the future values of the fixed effects parameters (games started, strike-out percentage, etc), so this plot isn't realistic either!
 
 ## Predict Future Performance Based on Mid-Career Data
 
 In practice we'll want to use all the data available to use. A more realistic situation occurs when you have a player's performance history up until the current date and you'd like to forecast what happens years from now. In this case things change in the sense that any continuous fixed covariates used must either be forecasted themselves or removed from the model, so that only an intercept and time-factor is included. Then we need only use the changing time value and the random effects estimates to predict each year.
+
+Here's the worst test set predictions when we have time as a fixed and random component and remove the other fixed effects:
+
+![](plots/plotTestWorst3.png)
+
+We get some straight line nonsense. If we continually update the BLUP (random effects vector) though, we can get closer and closer to a good prediction as long as we have enough data points to learn from at the start. For example, take Alcides Escobar (top left plot) from before and use the first 3 known points to calculate and update the BLUPs:
+
+![](plots/escobal02_3.png)
+
+Clearly 3 years isn't enough. 
+
